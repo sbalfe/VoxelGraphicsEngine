@@ -13,6 +13,7 @@
 #include <utility>
 #include <fmt/format.h>
 #include "Block.h"
+#include <GL/glew.h>
 
 namespace {
 
@@ -24,11 +25,6 @@ namespace {
     constexpr Size chunkSize{16,16,16};
 
     constexpr auto size = chunkSize.l * chunkSize.w * chunkSize.h;
-}
-
-class Chunk {
-
-public:
 
     struct Position {
 
@@ -41,6 +37,52 @@ public:
         uint32_t z;
     };
 
+    constexpr GLfloat g_vertex_buffer_data[] = {
+            -1.0f,-1.0f,-1.0f, // triangle 1 : begin
+            -1.0f,-1.0f, 1.0f,
+            -1.0f, 1.0f, 1.0f, // triangle 1 : end
+            1.0f, 1.0f,-1.0f, // triangle 2 : begin
+            -1.0f,-1.0f,-1.0f,
+            -1.0f, 1.0f,-1.0f, // triangle 2 : end
+            1.0f,-1.0f, 1.0f,
+            -1.0f,-1.0f,-1.0f,
+            1.0f,-1.0f,-1.0f,
+            1.0f, 1.0f,-1.0f,
+            1.0f,-1.0f,-1.0f,
+            -1.0f,-1.0f,-1.0f,
+            -1.0f,-1.0f,-1.0f,
+            -1.0f, 1.0f, 1.0f,
+            -1.0f, 1.0f,-1.0f,
+            1.0f,-1.0f, 1.0f,
+            -1.0f,-1.0f, 1.0f,
+            -1.0f,-1.0f,-1.0f,
+            -1.0f, 1.0f, 1.0f,
+            -1.0f,-1.0f, 1.0f,
+            1.0f,-1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f,-1.0f,-1.0f,
+            1.0f, 1.0f,-1.0f,
+            1.0f,-1.0f,-1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f,-1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f,-1.0f,
+            -1.0f, 1.0f,-1.0f,
+            1.0f, 1.0f, 1.0f,
+            -1.0f, 1.0f,-1.0f,
+            -1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            -1.0f, 1.0f, 1.0f,
+            1.0f,-1.0f, 1.0f
+    };
+
+    constexpr GLfloat cubeFront[] = {
+
+    };
+}
+
+class Chunk {
+public:
     Chunk();
 
     ~Chunk() = default;
@@ -51,33 +93,13 @@ public:
 
 private:
 
-    void generateMesh(){
-        for (uint32_t x = 0; x <  chunkSize.l; x++) {
-            for (uint32_t y = 0; y < chunkSize.w ; y++) {
-                for (uint32_t z = 0; z < chunkSize.h; z++) {
-                    auto& block = getBlock({x,y,z});
-                    auto& block2 = getBlock({x,y,z});
+    void generateMesh();
 
-                    if (getBlock({x,y,z})){
-                        std::cout << "active" << std::endl;
-                    }
-                }
-            }
-        }
-    }
+    static auto convertIndex(const Position& pos);
 
-    static auto convertIndex(const Position& pos){
-        auto [x,y,z] = pos();
-        return x * chunkSize.h * chunkSize.l + y * chunkSize.l + z;
-    }
+    void addBlock(Position const& pos, BlockType const& type);
 
-    void addBlock(const Position& pos, const BlockType& type){
-        blocks_[convertIndex(pos)] = std::make_unique<Block>(type);
-    }
-
-    Block const & getBlock(const Position& pos){
-        return *blocks_[convertIndex(pos)];
-    }
+    Block const& getBlock(const Position& pos);
 
     std::vector<std::unique_ptr<Block>> blocks_{};
 };

@@ -15,7 +15,9 @@
 #include "stb_image.h"
 #include <filesystem>
 #include <fmt/format.h>
-#include <boost/>
+#include <algorithm>
+#include <array>
+
 
 Shader* customShader;
 
@@ -27,6 +29,7 @@ struct windowContext{
 
 GLuint texture1;
 GLuint VAO{}, VBO{}, colourBuffer{};
+GLuint EBO{};
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -46,45 +49,55 @@ float lastFrame = 0.0f;
 
 // Our vertices. Three consecutive floats give a 3D vertex; Three consecutive vertices give a triangle.
 // A cube has 6 faces with 2 triangles each, so this makes 6*2=12 triangles, and 12*3 vertices
-static const GLfloat g_vertex_buffer_data[] = {
-        -1.0f,-1.0f,-1.0f, // triangle 1 : begin
-        -1.0f,-1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f, // triangle 1 : end
-        1.0f, 1.0f,-1.0f, // triangle 2 : begin
-        -1.0f,-1.0f,-1.0f,
-        -1.0f, 1.0f,-1.0f, // triangle 2 : end
-        1.0f,-1.0f, 1.0f,
-        -1.0f,-1.0f,-1.0f,
-        1.0f,-1.0f,-1.0f,
-        1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f,-1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f, 1.0f,
-        -1.0f,-1.0f, 1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f,-1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f,-1.0f,
-        1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f,-1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f,-1.0f,
-        -1.0f, 1.0f,-1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f,-1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f
+
+
+std::array<GLfloat, 12> FRONT_QUAD{
+
+      0.5f, 0.5f, -0.5f,  // top right
+      0.5f, -0.5f, -0.5f,  // bottom right
+      -0.5f, -0.5f, -0.5f,  // bottom left
+     -0.5f, 0.5f, -0.5f   // top left
 };
 
+ std::array<GLfloat, 12> BACK_QUAD {
+         0.5f, 0.5f, -1.5f,  // top right
+         0.5f, -0.5f, -1.5f,  // bottom right
+         -0.5f, -0.5f, -1.5f,  // bottom left
+         -0.5f, 0.5f, -1.5f   // top left
+};
+
+std::array<GLfloat, 12> LEFT_QUAD {
+        -0.5f, 0.5f, -1.5f,  // top right
+        -0.5f, -0.5f, -1.5f,  // bottom right
+        -0.5f, -0.5f, -0.5f,  // bottom left, dont change
+        -0.5f, 0.5f, -0.5f   // top left, dont change
+};
+
+
+std::array<GLfloat, 12> RIGHT_QUAD {
+        0.5f, 0.5f, -1.5f,  // top right
+        0.5f, -0.5f, -1.5f,  // bottom right
+        0.5f, -0.5f, -0.5f,  // bottom left, dont change
+        0.5f, 0.5f, -0.5f   // top left, dont change
+};
+
+std::array<std::uint32_t, 24> indices {
+    0,1,3,
+    1,2,3,
+    4,5,7,
+    5,6,7,
+    8,9,11,
+    9,10,11,
+    12,13,15,
+    13,14,15
+};
+
+std::vector<std::array<GLfloat, 12>> cube {
+    FRONT_QUAD,
+    BACK_QUAD,
+    LEFT_QUAD,
+    RIGHT_QUAD,
+};
 
 // One color for each vertex. They were generated randomly.
 static const GLfloat g_color_buffer_data[] = {
@@ -150,6 +163,37 @@ int InitShaders()
     return 0;
 }
 
+enum class quadType{
+    FRONT,
+    BACK,
+    LEFT,
+    RIGHT,
+    BOTTOM,
+    TOP
+};
+
+std::array<GLfloat, 6> getQuad(quadType const& qt,  std::array<GLfloat, 6>& baseQuad){
+    switch(qt) {
+        case quadType::BACK : {
+            std::transform(std::begin(baseQuad), std::end(baseQuad), std::begin(baseQuad), [&](GLfloat vertex){
+                return vertex - 0.5f;
+            });
+        }
+        case quadType::LEFT: {
+            std::transform(std::begin(baseQuad), std::end(baseQuad), std::begin(baseQuad), [&](GLfloat vertex){
+                return vertex - 0.5f;
+            });
+            break;
+        }
+        case quadType::RIGHT:
+            break;
+        case quadType::BOTTOM:
+            break;
+        case quadType::TOP:
+            break;
+    }
+}
+
 /*
  * Initialize Geometry
  */
@@ -160,16 +204,31 @@ int InitGeometry()
 
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+
+
+    GLfloat cube_buffer_data[cube.size() * 12];
+
+    int counter {0};
+    for (const auto& quad: cube){
+        for (size_t vertex {0} ; vertex < quad.size(); ++vertex){
+            cube_buffer_data[vertex + (quad.size() * counter)] = quad.at(vertex);
+        }
+        ++counter;
+    }
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_buffer_data), cube_buffer_data, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
     glEnableVertexAttribArray(0);
+
+    glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices.data(), GL_STATIC_DRAW);
 
     glGenBuffers(1, &colourBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, colourBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,0, (void*)0);
     glEnableVertexAttribArray(1);
-
 
     return 0;
 }
@@ -234,14 +293,18 @@ int Update(windowContext* wc)
     customShader->use();
     glBindVertexArray(VAO);
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)(SCR_WIDTH) / (float)(SCR_HEIGHT), 0.1f, 100.0f);
+    //glm::mat4 projection = glm::perspective(90.0f, (float)(SCR_WIDTH) / (float)(SCR_HEIGHT), 0.1f, 100.0f);
     glm::mat4 view = camera.GetViewMatrix();
+    //glm::mat4 view = glm::mat4(1.0f);
     customShader->setMat4("projection", projection);
     customShader->setMat4("view", view);
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, {0,0,-3});
+    glm::vec3 scale = glm::vec3(0.2, 0.2, 0.2);
+    model = glm::translate(model, {0,0,0});
+    model = glm::scale(model, scale);
     customShader->setMat4("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
 
+    glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, nullptr);
     /*
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)(SCR_WIDTH) / (float)(SCR_HEIGHT), 0.1f, 100.0f);
     glm::mat4 view = camera.GetViewMatrix();
@@ -342,25 +405,24 @@ void processKeyboard(){
     }
 }
 
-void processMouse(int xPos, int yPos){
+void Cum(float x_pos, float y_pos){
 
-    float xpos = static_cast<float>(xPos);
-    float ypos = static_cast<float>(yPos);
+    std::cout << fmt::format("mouse x: {}, mouse y: {}\n", x_pos, y_pos);
 
     if (firstMouse)
     {
-        lastX = xpos;
-        lastY = ypos;
+        lastX = x_pos;
+        lastY = y_pos;
         firstMouse = false;
     }
 
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    float x_offset = x_pos - lastX;
+    float y_offset = lastY - y_pos; // reversed since y-coordinates go from bottom to top
 
-    lastX = xpos;
-    lastY = ypos;
+    lastX = x_pos;
+    lastY = y_pos;
 
-    camera.ProcessMouseMovement(xoffset, yoffset);
+    camera.ProcessMouseMovement(x_offset, y_offset);
 }
 /*
  * Program entry point
@@ -383,8 +445,6 @@ int main(int argc, char *argv[])
         SDL_Event event;
         processKeyboard();
         while (SDL_PollEvent(&event)) {
-
-
             switch (event.type) {
                 case SDL_QUIT: {
                     should_run = 0;
@@ -394,7 +454,7 @@ int main(int argc, char *argv[])
                 case SDL_MOUSEMOTION: {
                     int x,y;
                     SDL_GetMouseState(&x,&y);
-                    processMouse(x,y);
+                    CUM(x,y);
                 }
             }
 

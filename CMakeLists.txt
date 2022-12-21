@@ -3,7 +3,7 @@ project(Voxel)
 
 set(CMAKE_CXX_STANDARD 23)
 
-add_executable(Voxel ResourceManagers/Shader.cpp src/test.cpp src/glad.c Assets/Images/logo.h stb_image.h  Engine/Camera.cpp Engine/Camera.h Engine/Block.h Engine/Chunk.cpp Engine/Chunk.h)
+add_executable(Voxel ResourceManagers/Shader.cpp src/main2.cpp src/glad.c Assets/Images/logo.h stb_image.h  Engine/Camera.cpp Engine/Camera.h Engine/Block.h Engine/Chunk.cpp Engine/Chunk.h)
 
 find_package(OpenGL)
 find_package(SDL2 REQUIRED)
@@ -12,13 +12,7 @@ find_package(glm REQUIRED)
 find_package(fmt REQUIRED)
 find_package(Boost 1.40)
 
-#set(IMGUI_DIR "./imgui")
-
-#add_library("imgui" "${IMGUI_DIR}/imgui.cpp""${IMGUI_DIR}/imgui_draw.cpp""${IMGUI_DIR}/imgui_tables.cpp""${IMGUI_DIR}/imgui_widgets.cpp""${IMGUI_DIR}/imgui_impl_sdl.cpp""${IMGUI_DIR}/imgui_impl_opengl3.cpp")
-
-#target_include_directories("imgui" PRIVATE "${IMGUI_DIR}")
-
-include_directories( ${OPENGL_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS} ${glm_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} ${fmt_INCLUDE_DIRS} ./ ./include)
+include_directories(${OPENGL_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS} ${glm_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} ${fmt_INCLUDE_DIRS} ./ ./include)
 target_link_libraries(Voxel ${OPENGL_LIBRARIES} ${SDL2_LIBRARIES} ${GLEW_LIBRARIES} ${Boost_LIBRARIES} ${glm_LIBRARIES} fmt::fmt)
 
 
